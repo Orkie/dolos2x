@@ -16,10 +16,11 @@ uc_engine* initArm920() {
 int mapBuffer(uc_engine* cpu, uint32_t address, uint32_t size, void* buf) {
   uc_err err = uc_mem_map_ptr(cpu, address, size, UC_PROT_ALL, buf);
   if(err) {
-    fprintf(stderr, "Failed on uc_mem_map_ptr with error returned: %u (%s)\n",
-	   err, uc_strerror(err));
+    fprintf(stderr, "Failed to map buffer to 0x%x: %u (%s)\n",
+	    address, err, uc_strerror(err));
     return 1;
   }
+  printf("Successfully mapped 0x%x\n", address);
 
   return 0;
 }

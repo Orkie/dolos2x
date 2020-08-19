@@ -20,12 +20,19 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  void* ioRegs = calloc(1, 0x10000);
+  if(ioRegs == NULL) {
+    fprintf(stderr, "Could not allocate IO regs\n");
+    return 1;
+  }
+
   if(readBootBlock(gp2xRam)) {
     fprintf(stderr, "Could not read boot block from NAND\n");
     return 1;
   }
 
-  mapBuffer(arm920, 0x0, 512, gp2xRam);
+  mapBuffer(arm920, 0x0, SZ_RAM, gp2xRam);
+  mapBuffer(arm920, 0xC0000000, 0x10000, ioRegs);
   
   uc_err err = uc_emu_start(arm920, 0x0, 4294967296 - 1, 0, 0);
   if (err) {
