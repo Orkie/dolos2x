@@ -4,13 +4,11 @@
 #include "dolos2x.h"
 
 int main(int argc, char* argv[]) {
-  uc_engine* arm920;
-  printf("blah1: %p\n", arm920);
-  if(initArm920(arm920)) {
+  uc_engine* arm920 = NULL;
+  if((arm920 = initArm920()) == NULL) {
     fprintf(stderr, "Could not init ARM920T core\n");
     return 1;
   }
-  printf("blah2: %p\n", arm920);
 
   if(initNand()) {
     return 1;
