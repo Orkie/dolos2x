@@ -5,6 +5,9 @@
 #define SZ_NAND (64*1024*1024)
 #define SZ_RAM (64*1024*1024)
 
+typedef struct {
+  int (*init)(uc_engine* );
+} MMSP2Peripheral;
 typedef void (*MMSP2Peripheral)();
 
 extern uc_engine* initArm920();

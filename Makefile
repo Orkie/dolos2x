@@ -1,5 +1,5 @@
-LIBS := -lunicorn -lpthread
+LIBS := -lunicorn -lpthread -lstdc++ -lfmt
 INCLUDE := -Iinclude/
 
 all:
-	cc -g $(LIBS) $(INCLUDE) source/*.c -o dolos2x
+	cc -g $(LIBS) $(INCLUDE) source/*.c source/*.cpp -o dolos2x

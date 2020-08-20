@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "dolos2x.h"
+#include <memory>
+#include <list>
+#include "dolos.h"
 
 static void memHookCallback(uc_engine *uc, uc_mem_type type, uint64_t address, uint32_t size, int64_t value, void *user_data) {
   uint32_t pc;
@@ -14,14 +16,18 @@ static void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, voi
   printf("Running instruction 0x%x\n", address);
 }
 
-int main2(int argc, char* argv[]) {
-  uc_engine* arm920 = NULL;
-  if((arm920 = initArm920()) == NULL) {
-    fprintf(stderr, "Could not init ARM920T core\n");
-    return 1;
-  }
+dolos::Logger* LOGGER;
 
-  if(initNand()) {
+int main(int argc, char* argv[]) {
+  LOGGER = new dolos::Logger();
+  std::unique_ptr<dolos::Cpus> cpus(new dolos::Cpus());
+
+  std::list<dolos::Peripheral> peripherals = {
+    new dolos::Nand(cpus.get())
+  };
+
+  delete LOGGER;
+  /*  if(initNand()) {
     return 1;
   }
 
@@ -94,7 +100,7 @@ rerr = uc_mem_read(arm920, 0xc0000000, buf, 512);
   uint32_t pc;
   uc_reg_read(arm920, UC_ARM_REG_PC, &pc);
 
-  printf("PC is 0x%x\n", pc);
+  printf("PC is 0x%x\n", pc);*/
   
   return 0;
 }
