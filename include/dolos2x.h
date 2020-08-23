@@ -6,6 +6,10 @@
 #define SZ_NAND (64*1024*1024)
 #define SZ_RAM (64*1024*1024)
 
+#define CLEARBITS(in, bits) (in & (~bits))
+
+#define DEBUG
+
 extern int initCpus();
 extern uc_engine* getArm920();
 extern void* getRam();

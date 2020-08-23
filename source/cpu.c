@@ -71,5 +71,6 @@ int mapBuffer(uint32_t address, uint32_t size, void* buf) {
 
 int hookReg(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   uc_hook memhook;
-  uc_hook_add(arm920, &memhook, UC_HOOK_MEM_WRITE_UNMAPPED, callback, NULL, addr, addr+width);
+  printf("Hooking 0x%x\n", addr);
+  uc_hook_add(arm920, &memhook, UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
 }

@@ -5,12 +5,21 @@
 static FILE* nandFp;
 static void* nandRegs;
 
+static uint16_t rMEMNANDCTRLW = 0x0;
+
 static void handleNFCMD(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
   printf("NFCMD HAS BEEN WRITTEN TO!!!: 0x%x\n", value);
 }
 
+static void handleNFADDR(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
+  printf("NFADDR HAS BEEN WRITTEN TO!!!: 0x%x\n", value);
+}
+
 static void handleMEMNANDCTRLW(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  printf("MEMNANDCTRLW HAS BEEN WRITTEN TO!!!: 0x%x\n", value);
+  rMEMNANDCTRLW = CLEARBITS(rMEMNANDCTRLW, value);
+  #ifdef DEBUG
+  printf("Write to MEMNANDCTRLW: 0x%x 0x%x\n", value, rMEMNANDCTRLW);
+  #endif
 }
 
 int initNand(uc_engine* cpu) {
@@ -26,10 +35,11 @@ int initNand(uc_engine* cpu) {
     return 2;
   }
 
-  mapBuffer(0x9C000000, 4096, nandRegs);
+  mapBuffer(NAND_BASE, 4096, nandRegs);
 
-  hookReg(0x9C000000, 2, handleNFCMD);
-  hookReg(REG(MEMNANDCTRLW), 2, handleNFCMD);
+  hookReg(NANDREG(NFCMD), 2, handleNFCMD);
+  hookReg(NANDREG(NFADDR), 2, handleNFADDR);
+  hookReg(REG(MEMNANDCTRLW), 2, handleMEMNANDCTRLW);
   
   return 0;
 }

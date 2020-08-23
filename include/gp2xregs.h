@@ -10,6 +10,8 @@
 
 #define IO_BASE 0xC0000000
 #define REG(x) (IO_BASE+x)
+#define NAND_BASE 0x9C000000
+#define NANDREG(x) (NAND_BASE+x)
 
 #define BIT(x) (1 << x)
 #define SET(reg, bit, onOff) ((reg&(~bit))|(onOff ? bit : 0))
