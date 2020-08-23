@@ -69,8 +69,20 @@ int mapBuffer(uint32_t address, uint32_t size, void* buf) {
   return 0;
 }
 
-int hookReg(uint32_t addr, int width, uc_cb_hookmem_t callback) {
+int hookRegWrite(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   uc_hook memhook;
   printf("Hooking 0x%x\n", addr);
   uc_hook_add(arm920, &memhook, UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
+}
+
+int hookRegRead(uint32_t addr, int width, uc_cb_hookmem_t callback) {
+  uc_hook memhook;
+  printf("Hooking 0x%x\n", addr);
+  uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ, callback, NULL, addr, addr+(width-1));
+}
+
+int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback) {
+  uc_hook memhook;
+  printf("Hooking 0x%x\n", addr);
+  uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
 }

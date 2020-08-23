@@ -13,8 +13,11 @@
 extern int initCpus();
 extern uc_engine* getArm920();
 extern void* getRam();
+extern void* getIORegs();
 extern int mapBuffer(uint32_t address, uint32_t size, void* buf);
-extern int hookReg(uint32_t addr, int width, uc_cb_hookmem_t callback);
+extern int hookRegWrite(uint32_t addr, int width, uc_cb_hookmem_t callback);
+extern int hookRegRead(uint32_t addr, int width, uc_cb_hookmem_t callback);
+extern int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback);
 extern void startExecution();
 
 extern int initNand();
