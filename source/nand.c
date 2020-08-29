@@ -34,8 +34,9 @@ static void startCommand() {
     commandRunning = true;
     dataCounter = 0;
     memset(dataBuffer, 0x0, BLOCK_SZ);
-    if(fseek(nandFp, addr, SEEK_SET) != 0 || fread(dataBuffer, 1, BLOCK_SZ, nandFp) != 512) {
-      fprintf(stderr, "Could not read NAND block 0x%x\n", addr);
+    int bytesRead;
+    if(fseek(nandFp, addr, SEEK_SET) != 0 || (bytesRead = fread(dataBuffer, 1, BLOCK_SZ, nandFp)) != 512) {
+      printf("Could not read full NAND block 0x%x, read %d bytes\n", addr, bytesRead);
       return;
     }
     *rMEMNANDCTRLW |= 0x8080;
@@ -81,7 +82,8 @@ static void handleNFDATA(uc_engine *uc, uc_mem_type type, uint64_t address, int 
   if(commandRunning) {
     if(type == UC_MEM_READ) {
       if(size == 2) {
-	*rNFDATA = (dataBuffer[dataCounter++] << 8) | dataBuffer[dataCounter++];
+	*rNFDATA = (dataBuffer[dataCounter+1] << 8) | dataBuffer[dataCounter];
+	dataCounter += 2;
       } else {
 	*rNFDATA = dataBuffer[dataCounter++];
       }      

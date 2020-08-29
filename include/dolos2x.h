@@ -18,6 +18,7 @@ extern int mapBuffer(uint32_t address, uint32_t size, void* buf);
 extern int hookRegWrite(uint32_t addr, int width, uc_cb_hookmem_t callback);
 extern int hookRegRead(uint32_t addr, int width, uc_cb_hookmem_t callback);
 extern int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback);
+extern int addBreakpoint(uint32_t addr);
 extern void startExecution();
 
 extern int initNand();

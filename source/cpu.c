@@ -86,3 +86,32 @@ int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   printf("Hooking 0x%x\n", addr);
   uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
 }
+
+uint32_t getReg(int reg) {
+  uint32_t regVal;
+  uc_reg_read(arm920, reg, &regVal);
+  return regVal;
+}
+
+void breakpointCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
+  uint32_t* addr = (uint32_t*) user_data;
+  printf("Execution halted at breakpoint 0x%x\n", *addr);
+  printf("  R0: %x\n", getReg(UC_ARM_REG_R0));
+  printf("  R1: %x\n", getReg(UC_ARM_REG_R1));
+  printf("  R2: %x\n", getReg(UC_ARM_REG_R2));
+  printf("  R3: %x\n", getReg(UC_ARM_REG_R3));
+  printf("  R4: %x\n", getReg(UC_ARM_REG_R4));
+  printf("  R5: %x\n", getReg(UC_ARM_REG_R5));
+  printf("  R6: %x\n", getReg(UC_ARM_REG_R6));
+  printf("  R7: %x\n", getReg(UC_ARM_REG_R7));
+  printf("  R8: %x\n", getReg(UC_ARM_REG_R8));
+  printf("  R9: %x\n", getReg(UC_ARM_REG_R9));
+  printf("  R10: %x\n", getReg(UC_ARM_REG_R10));
+
+  getc(stdin);
+}
+
+int addBreakpoint(uint32_t addr) {
+  uc_hook cpuhook;
+  uc_hook_add(arm920, &cpuhook, UC_HOOK_CODE, breakpointCallback, &addr, addr, addr+3);
+}
