@@ -24,4 +24,7 @@ extern void startExecution();
 extern int initNand();
 extern int readBootBlock(void* buf);
 
+extern int initTimer();
+extern int initMMSP2();
+
 #endif

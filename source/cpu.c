@@ -107,6 +107,7 @@ void breakpointCallback(uc_engine *uc, uint64_t address, uint32_t size, void *us
   printf("  R8: %x\n", getReg(UC_ARM_REG_R8));
   printf("  R9: %x\n", getReg(UC_ARM_REG_R9));
   printf("  R10: %x\n", getReg(UC_ARM_REG_R10));
+  printf("  IP: %x\n", getReg(UC_ARM_REG_IP));
 
   getc(stdin);
 }

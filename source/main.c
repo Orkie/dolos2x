@@ -21,11 +21,7 @@ int main(int argc, char* argv[]) {
 
   uc_engine* arm920 = getArm920();
   
-  if(initNand()) {
-    return 1;
-  }
-
-  if(readBootBlock(getRam())) {
+  if(initNand() || initTimer() || initMMSP2() || readBootBlock(getRam())) {
     return 1;
   }
 
@@ -34,8 +30,6 @@ int main(int argc, char* argv[]) {
   
   uc_hook memHook;
   uc_hook_add(arm920, &memHook, UC_HOOK_MEM_UNMAPPED, memHookCallback, NULL, 1, 0);
-
-  addBreakpoint(0xd4);
   
   startExecution();
   
