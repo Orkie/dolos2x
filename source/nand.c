@@ -4,6 +4,10 @@
 #include "dolos2x.h"
 
 #define CMD_READ 0x0
+#define CMD_ERASE_SETUP 0x60
+#define CMD_ERASE_CONFIRM 0xD0
+#define CMD_WRITE_SETUP 0x80
+#define CMD_WRITE_CONFIRM 0x10
 
 #define BLOCK_SZ 512
 
@@ -20,6 +24,15 @@ static int dataCounter = 0;
 
 static uint16_t* rMEMNANDCTRLW = NULL;
 static uint16_t* rNFDATA = NULL;
+
+static void padFileTo(long sz) {
+  fseek(nandFp, 0, SEEK_END);
+  long fileSize = ftell(nandFp);
+  long paddingNeeded = sz - fileSize;
+  for(long i = 0 ; i < paddingNeeded ; i++) {
+    fputc(0xff, nandFp);
+  }
+}
 
 static void startCommand() {
   #ifdef DEBUG
@@ -41,6 +54,29 @@ static void startCommand() {
     }
     *rMEMNANDCTRLW |= 0x8080;
     break;
+  case CMD_ERASE_CONFIRM:
+    memset(dataBuffer, 0xff, BLOCK_SZ);
+    uint32_t startAddress = BLOCK_SZ * addr;
+    printf("Erasing block %d, addr 0x%x\n", addr, startAddress);
+    padFileTo(startAddress + BLOCK_SZ);
+    fseek(nandFp, startAddress, SEEK_SET);
+    fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
+    fflush(nandFp);
+    *rMEMNANDCTRLW |= 0x8080;
+    break;
+  case CMD_WRITE_SETUP:
+    commandRunning = true;
+    dataCounter = 0;
+    memset(dataBuffer, 0x0, BLOCK_SZ);
+    addrBuffer = addr;
+    break;
+  case CMD_WRITE_CONFIRM:
+    printf("Writing to: 0x%x\n", addr);
+    padFileTo(startAddress + BLOCK_SZ);
+    fseek(nandFp, addr, SEEK_SET);
+    fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
+    *rMEMNANDCTRLW |= 0x8080;
+    break;
   default:
     fprintf(stderr, "Unknown NAND command 0x%x\n", command);
   }
@@ -51,6 +87,11 @@ static void handleNFCMD(uc_engine *uc, uc_mem_type type, uint64_t address, int s
   printf("Write to NFCMD: 0x%x\n", value);
   #endif
   command = value;
+  if(command == CMD_ERASE_CONFIRM) {
+    startCommand();
+  } else if(command == CMD_WRITE_CONFIRM) {
+    startCommand();
+  }
 }
 
 static void handleNFADDR(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
@@ -62,15 +103,17 @@ static void handleNFADDR(uc_engine *uc, uc_mem_type type, uint64_t address, int 
     addrBuffer |= (value & 0xFF);
     addrCounter++;
   } else if(addrCounter == 1) {
-    addrBuffer |= ((value & 0xFF) << 9);
+    addrBuffer |= ((value & 0xFF) << (command == CMD_ERASE_SETUP ? 8 : 9));
     addrCounter++;
   } else if(addrCounter == 2) {
-    addrBuffer |= ((value & 0xFF) << 17);
+    addrBuffer |= ((value & 0xFF) << (command == CMD_ERASE_SETUP ? 16 : 17));
     addrCounter++;
   } else if(addrCounter == 3) {
-    addrBuffer |= ((value & 0xFF) << 25);
+    addrBuffer |= ((value & 0xFF) << (command == CMD_ERASE_SETUP ? 24 : 25));
     addrCounter = 0;
-    startCommand();
+    if(command != CMD_ERASE_SETUP) {
+      startCommand();
+    }
   }
 }
 
@@ -115,7 +158,7 @@ static void handleMEMNANDCTRLW(uc_engine *uc, uc_mem_type type, uint64_t address
 }
 
 int initNand() {
-  nandFp = fopen("nand.bin", "ab+");
+  nandFp = fopen("nand.bin", "rb+");
   if(nandFp == NULL) {
     fprintf(stderr, "Error opening NAND image\n");
     return 1;

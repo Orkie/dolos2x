@@ -15,8 +15,6 @@ int videoThreadFn(void* data) {
   uint32_t lastVsync = SDL_GetTicks();
   
   while(true) {
-    printf("Current rgbFbAddr: 0x%x\n", rgbFbAddr);
-    
     uint32_t currentTicks = SDL_GetTicks();
     if((currentTicks - lastVsync) >= 16) {
       // TODO - figure out correct timing for v/hsync on GP2X
@@ -24,9 +22,6 @@ int videoThreadFn(void* data) {
       *rGPIOBPINLVL |= BIT(4);
       SDL_Delay(40);
       *rGPIOBPINLVL = CLEARBITS(*rGPIOBPINLVL, BIT(4));
-      #ifdef DEBUG
-      printf("Simulating vsync\n");
-      #endif
     }
     
   }

@@ -72,6 +72,9 @@ int main(int argc, char* argv[]) {
 
   atexit(cleanup);
 
+  //  addBreakpoint(0x3d1357c);
+  //  addBreakpoint(0x3d13588);
+  
   startExecution();
   
   uint32_t pc;
