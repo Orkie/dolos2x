@@ -1,5 +1,5 @@
-LIBS := -lunicorn -lpthread
-INCLUDE := -Iinclude/
+LIBS := -lunicorn -lpthread `sdl2-config --libs`
+CFLAGS := -Iinclude/ `sdl2-config --cflags`
 
 all:
-	cc -g $(LIBS) $(INCLUDE) source/*.c -o dolos2x
+	cc -g $(LIBS) $(CFLAGS) source/*.c -o dolos2x
