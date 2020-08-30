@@ -26,5 +26,5 @@ extern int readBootBlock(void* buf);
 
 extern int initTimer();
 extern int initMMSP2();
-
+extern int initNet2272(bool isF200);
 #endif

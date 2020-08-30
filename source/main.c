@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 
   uc_engine* arm920 = getArm920();
   
-  if(initNand() || initTimer() || initMMSP2() || readBootBlock(getRam())) {
+  if(initNand() || initTimer() || initMMSP2() || initNet2272(false) || readBootBlock(getRam())) {
     return 1;
   }
 

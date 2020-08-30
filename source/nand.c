@@ -114,7 +114,7 @@ static void handleMEMNANDCTRLW(uc_engine *uc, uc_mem_type type, uint64_t address
   #endif
 }
 
-int initNand(uc_engine* cpu) {
+int initNand() {
   nandFp = fopen("nand.bin", "ab+");
   if(nandFp == NULL) {
     fprintf(stderr, "Error opening NAND image\n");
