@@ -30,7 +30,6 @@ int eventThreadFn(void* data) {
       }
     }
   }
-  printf("thread invoked\n");
 }
 
 int init() {
@@ -49,17 +48,19 @@ void cleanup() {
 }
 
 int main(int argc, char* argv[]) {
-  if(init()) {
+  if(init() || initCpus()) {
     return 1;
   }
   
-  if(initCpus()) {
-    return 1;
-  }
-
   uc_engine* arm920 = getArm920();
   
-  if(initNand() || initTimer() || initMMSP2() || initNet2272(false) || readBootBlock(getRam())) {
+  if(initNand() ||
+     initTimer() ||
+     initMMSP2() ||
+     initNet2272(false) ||
+     readBootBlock(getRam()) ||
+     initVideo()
+    ) {
     return 1;
   }
 

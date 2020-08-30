@@ -54,3 +54,5 @@ dkms.conf
 *.bin
 *~
 dolos2x
+*.log
+log
