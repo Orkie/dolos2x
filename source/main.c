@@ -59,21 +59,22 @@ int main(int argc, char* argv[]) {
      initMMSP2() ||
      initNet2272(false) ||
      readBootBlock(getRam()) ||
-     initVideo()
+     initVideo(sdlRenderer)
     ) {
     return 1;
   }
 
+  #ifdef DEBUG
   uc_hook cpuhook;
   uc_hook_add(arm920, &cpuhook, UC_HOOK_CODE, codeHookCallback, NULL, 1, 0);
+  #endif
   
   uc_hook memHook;
   uc_hook_add(arm920, &memHook, UC_HOOK_MEM_UNMAPPED, memHookCallback, NULL, 1, 0);
 
   atexit(cleanup);
 
-  //  addBreakpoint(0x3d1357c);
-  //  addBreakpoint(0x3d13588);
+  //  addBreakpoint(0x3d03110);
   
   startExecution();
   

@@ -11,6 +11,8 @@ static uint32_t rgbFbAddr = 0x0;
 
 static SDL_Thread* videoThread;
 
+static SDL_Renderer* sdlRenderer;
+
 int videoThreadFn(void* data) {
   uint32_t lastVsync = SDL_GetTicks();
   
@@ -22,6 +24,16 @@ int videoThreadFn(void* data) {
       *rGPIOBPINLVL |= BIT(4);
       SDL_Delay(40);
       *rGPIOBPINLVL = CLEARBITS(*rGPIOBPINLVL, BIT(4));
+
+      // update screen
+      uint8_t* ram = getRam();
+      SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom((ram+rgbFbAddr), 320, 240, 16, 2, SDL_PIXELFORMAT_RGB565);
+      SDL_Texture* texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
+      SDL_RenderClear(sdlRenderer);
+      SDL_RenderCopy(sdlRenderer, texture, NULL, NULL );
+      SDL_RenderPresent(sdlRenderer);
+      SDL_DestroyTexture(texture);
+      SDL_FreeSurface(surface);
     }
     
   }
@@ -40,7 +52,8 @@ static void handleRgbFbAddrSet(uc_engine *uc, uc_mem_type type, uint64_t address
   }
 }
 
-int initVideo() {
+int initVideo(SDL_Renderer* renderer) {
+  sdlRenderer = renderer;
   videoThread = SDL_CreateThread(videoThreadFn, "Video Thread", NULL);
 
   rGPIOBPINLVL = ((uint16_t*)getIORegs())+(GPIOBPINLVL>>1);

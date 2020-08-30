@@ -1,14 +1,13 @@
 #ifndef __DOLOS2X_H__
 #define __DOLOS2X_H__
 #include <unicorn/unicorn.h>
+#include <SDL.h>
 #include "gp2xregs.h"
 
 #define SZ_NAND (64*1024*1024)
 #define SZ_RAM (64*1024*1024)
 
 #define CLEARBITS(in, bits) (in & (~bits))
-
-#define DEBUG
 
 extern int initCpus();
 extern uc_engine* getArm920();
@@ -27,6 +26,6 @@ extern int readBootBlock(void* buf);
 extern int initTimer();
 extern int initMMSP2();
 extern int initNet2272(bool isF200);
-extern int initVideo();
+extern int initVideo(SDL_Renderer* renderer);
 
 #endif
