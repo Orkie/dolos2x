@@ -15,6 +15,9 @@ void toggle(volatile uint16_t* reg, int bit, bool isUp) {
 
 void toggleKey(SDL_Keycode key, bool isUp) {
   switch(key) {
+  case SDLK_ESCAPE:
+    exit(0);
+    break;
   case SDLK_UP:
     toggle(rGPIOMPINLVL, 0, isUp);
     break;

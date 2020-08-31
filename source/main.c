@@ -58,7 +58,8 @@ int main(int argc, char* argv[]) {
      readBootBlock(getRam()) ||
      initVideo(sdlRenderer) ||
      initGPIO() ||
-     initUart()
+     initUart() ||
+     initSD()
     ) {
     return 1;
   }
