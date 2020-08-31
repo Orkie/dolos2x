@@ -8,8 +8,6 @@
 static SDL_Window* sdlWindow;
 static SDL_Renderer* sdlRenderer;
 
-static SDL_Thread *eventThread;
-
 static void memHookCallback(uc_engine *uc, uc_mem_type type, uint64_t address, uint32_t size, int64_t value, void *user_data) {
   uint32_t pc;
   uc_reg_read(uc, UC_ARM_REG_PC, &pc);
@@ -21,23 +19,10 @@ void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user
   printf("Executing: 0x%x\n", address);
 }
 
-int eventThreadFn(void* data) {
-  SDL_Event event;
-  while(true) {
-    while(SDL_PollEvent(&event)) {
-      if(event.type == SDL_QUIT) {
-	exit(0);
-      }
-    }
-  }
-}
-
 int init() {
   sdlWindow = SDL_CreateWindow("dolos2x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
   sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_ACCELERATED);
 
-  eventThread = SDL_CreateThread(eventThreadFn, "Event Thread", NULL);
-  
   return 0;
 }
 
@@ -59,7 +44,8 @@ int main(int argc, char* argv[]) {
      initMMSP2() ||
      initNet2272(false) ||
      readBootBlock(getRam()) ||
-     initVideo(sdlRenderer)
+     initVideo(sdlRenderer) ||
+     initGPIO()
     ) {
     return 1;
   }

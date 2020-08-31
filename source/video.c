@@ -27,7 +27,6 @@ int videoThreadFn(void* data) {
 
       // update screen
       uint8_t* ram = getRam();
-      printf("RAM: %p, FB: %p, FBADDR: 0x%x\n", ram, (ram+rgbFbAddr), rgbFbAddr);
       SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom((ram+rgbFbAddr), 320, 240, 16, 320*2, SDL_PIXELFORMAT_RGB565);
       SDL_Texture* texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
       SDL_RenderClear(sdlRenderer);
@@ -45,10 +44,8 @@ int videoThreadFn(void* data) {
 static void handleRgbFbAddrSet(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
   uint16_t reg = address & 0xFFFF;
   if(reg == MLC_STL_OADRL) {
-    printf("Setting low addr: 0x%x\n", value);
     rgbFbAddr = (rgbFbAddr & 0xFFFF0000) | (value & 0xFFFF);
   } else if(reg == MLC_STL_OADRH) {
-    printf("Setting high addr: 0x%x\n", value);
     rgbFbAddr = (rgbFbAddr & 0xFFFF) | ((value & 0xFFFF) << 16);
   }
 }

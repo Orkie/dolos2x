@@ -49,7 +49,9 @@ static void startCommand() {
     memset(dataBuffer, 0x0, BLOCK_SZ);
     int bytesRead;
     if(fseek(nandFp, addr, SEEK_SET) != 0 || (bytesRead = fread(dataBuffer, 1, BLOCK_SZ, nandFp)) != 512) {
+      #ifdef DEBUG
       printf("Could not read full NAND block 0x%x, read %d bytes\n", addr, bytesRead);
+      #endif
       return;
     }
     *rMEMNANDCTRLW |= 0x8080;
@@ -57,7 +59,9 @@ static void startCommand() {
   case CMD_ERASE_CONFIRM:
     memset(dataBuffer, 0xff, BLOCK_SZ);
     uint32_t startAddress = BLOCK_SZ * addr;
+    #ifdef DEBUG
     printf("Erasing block %d, addr 0x%x\n", addr, startAddress);
+    #endif
     padFileTo(startAddress + BLOCK_SZ);
     fseek(nandFp, startAddress, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
@@ -71,7 +75,9 @@ static void startCommand() {
     addrBuffer = addr;
     break;
   case CMD_WRITE_CONFIRM:
+    #ifdef DEBUG
     printf("Writing to: 0x%x\n", addr);
+    #endif
     padFileTo(startAddress + BLOCK_SZ);
     fseek(nandFp, addr, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
