@@ -25,12 +25,12 @@ static int dataCounter = 0;
 static uint16_t* rMEMNANDCTRLW = NULL;
 static uint16_t* rNFDATA = NULL;
 
-static void padFileTo(long sz) {
-  fseek(nandFp, 0, SEEK_END);
-  long fileSize = ftell(nandFp);
+static void padFileTo(FILE* fp, long sz) {
+  fseek(fp, 0, SEEK_END);
+  long fileSize = ftell(fp);
   long paddingNeeded = sz - fileSize;
   for(long i = 0 ; i < paddingNeeded ; i++) {
-    fputc(0xff, nandFp);
+    fputc(0xff, fp);
   }
 }
 
@@ -62,7 +62,7 @@ static void startCommand() {
     #ifdef DEBUG
     printf("Erasing block %d, addr 0x%x\n", addr, startAddress);
     #endif
-    padFileTo(startAddress + BLOCK_SZ);
+    padFileTo(nandFp, startAddress + BLOCK_SZ);
     fseek(nandFp, startAddress, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
     fflush(nandFp);
@@ -78,7 +78,7 @@ static void startCommand() {
     #ifdef DEBUG
     printf("Writing to: 0x%x\n", addr);
     #endif
-    padFileTo(startAddress + BLOCK_SZ);
+    padFileTo(nandFp, startAddress + BLOCK_SZ);
     fseek(nandFp, addr, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
     fflush(nandFp);
