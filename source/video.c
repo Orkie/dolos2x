@@ -27,7 +27,8 @@ int videoThreadFn(void* data) {
 
       // update screen
       uint8_t* ram = getRam();
-      SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom((ram+rgbFbAddr), 320, 240, 16, 2, SDL_PIXELFORMAT_RGB565);
+      printf("RAM: %p, FB: %p, FBADDR: 0x%x\n", ram, (ram+rgbFbAddr), rgbFbAddr);
+      SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom((ram+rgbFbAddr), 320, 240, 16, 320*2, SDL_PIXELFORMAT_RGB565);
       SDL_Texture* texture = SDL_CreateTextureFromSurface(sdlRenderer, surface);
       SDL_RenderClear(sdlRenderer);
       SDL_RenderCopy(sdlRenderer, texture, NULL, NULL );
