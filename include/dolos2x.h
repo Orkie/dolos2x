@@ -28,5 +28,6 @@ extern int initMMSP2();
 extern int initNet2272(bool isF200);
 extern int initVideo(SDL_Renderer* renderer);
 extern int initGPIO();
+extern int initUart();
 
 #endif

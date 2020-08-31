@@ -52,12 +52,13 @@ static void handleRgbFbAddrSet(uc_engine *uc, uc_mem_type type, uint64_t address
 
 int initVideo(SDL_Renderer* renderer) {
   sdlRenderer = renderer;
-  videoThread = SDL_CreateThread(videoThreadFn, "Video Thread", NULL);
 
   rGPIOBPINLVL = ((uint16_t*)getIORegs())+(GPIOBPINLVL>>1);
 
   hookRegWrite(REG(MLC_STL_OADRL), 2, handleRgbFbAddrSet);
   hookRegWrite(REG(MLC_STL_OADRH), 2, handleRgbFbAddrSet);
 
+  videoThread = SDL_CreateThread(videoThreadFn, "Video Thread", NULL);
+  
   return 0;
 }

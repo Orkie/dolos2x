@@ -3,10 +3,14 @@
 #include <string.h>
 #include <stdint.h>
 #include <SDL.h>
+#include <termios.h>
+#include <unistd.h>
+#undef CTRL
 #include "dolos2x.h"
 
 static SDL_Window* sdlWindow;
 static SDL_Renderer* sdlRenderer;
+static struct termios old_tio, new_tio;
 
 static void memHookCallback(uc_engine *uc, uc_mem_type type, uint64_t address, uint32_t size, int64_t value, void *user_data) {
   uint32_t pc;
@@ -20,7 +24,7 @@ void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user
 }
 
 int init() {
-  sdlWindow = SDL_CreateWindow("dolos2x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
+  sdlWindow = SDL_CreateWindow("dolos2x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 960, 0);
   sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_ACCELERATED);
 
   return 0;
@@ -30,12 +34,20 @@ void cleanup() {
   SDL_DestroyRenderer(sdlRenderer);
   SDL_DestroyWindow(sdlWindow);
   SDL_Quit();
+  tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
+  printf("\n");
 }
 
 int main(int argc, char* argv[]) {
   if(init() || initCpus()) {
     return 1;
   }
+
+  tcgetattr(STDIN_FILENO, &old_tio);
+  new_tio = old_tio;
+  tcsetattr(STDIN_FILENO,TCSANOW, &old_tio);
+  new_tio.c_lflag &=(~ICANON & ~ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
   
   uc_engine* arm920 = getArm920();
   
@@ -45,7 +57,8 @@ int main(int argc, char* argv[]) {
      initNet2272(false) ||
      readBootBlock(getRam()) ||
      initVideo(sdlRenderer) ||
-     initGPIO()
+     initGPIO() ||
+     initUart()
     ) {
     return 1;
   }

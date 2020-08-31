@@ -35,10 +35,12 @@ void startExecution() {
   uc_mem_region* regions;
   int regionCount;
   uc_mem_regions(arm920, &regions, &regionCount);
+  #ifdef DEBUG
   printf("%d memory regions mapped\n", regionCount);
   for(int i = 0 ; i < regionCount ; i++) {
     printf("Start = 0x%x, end = 0x%x, perms = 0x%x\n", regions[i].begin, regions[i].end, regions[i].perms);
   }
+  #endif
 
   uc_err err = uc_emu_start(arm920, 0x0, 4294967296 - 1, 0, 0);
   if (err) {
@@ -71,19 +73,25 @@ int mapBuffer(uint32_t address, uint32_t size, void* buf) {
 
 int hookRegWrite(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   uc_hook memhook;
+  #ifdef DEBUG
   printf("Hooking 0x%x\n", addr);
+  #endif
   uc_hook_add(arm920, &memhook, UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
 }
 
 int hookRegRead(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   uc_hook memhook;
+  #ifdef DEBUG
   printf("Hooking 0x%x\n", addr);
+  #endif
   uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ, callback, NULL, addr, addr+(width-1));
 }
 
 int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback) {
   uc_hook memhook;
+  #ifdef DEBUG
   printf("Hooking 0x%x\n", addr);
+  #endif
   uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, callback, NULL, addr, addr+(width-1));
 }
 
