@@ -81,6 +81,7 @@ static void startCommand() {
     padFileTo(startAddress + BLOCK_SZ);
     fseek(nandFp, addr, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
+    fflush(nandFp);
     *rMEMNANDCTRLW |= 0x8080;
     break;
   default:
@@ -138,8 +139,8 @@ static void handleNFDATA(uc_engine *uc, uc_mem_type type, uint64_t address, int 
       }      
     } else {
       if(size == 2) {
-	dataBuffer[dataCounter++] = (value >> 8) & 0xFF;
 	dataBuffer[dataCounter++] = value & 0xFF;
+	dataBuffer[dataCounter++] = (value >> 8) & 0xFF;
       } else {
 	dataBuffer[dataCounter++] = value & 0xFF;	
       }      
