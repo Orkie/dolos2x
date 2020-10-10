@@ -19,6 +19,7 @@ extern int hookRegRead(uint32_t addr, int width, uc_cb_hookmem_t callback);
 extern int hookRegRW(uint32_t addr, int width, uc_cb_hookmem_t callback);
 extern int addBreakpoint(uint32_t addr);
 extern void startExecution();
+extern void traceCode();
 
 extern int initNand();
 extern int readBootBlock(void* buf);

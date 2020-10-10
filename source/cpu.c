@@ -4,10 +4,11 @@
 static uc_engine* arm920;
 static void* ram;
 static void* ioRegs;
+static void* backupIoRegs;
 
 // TODO handle arm940
 int initCpus() {
-  uc_err err = uc_open(UC_ARCH_ARM, UC_MODE_ARM, &arm920);
+  uc_err err = uc_open(UC_ARCH_ARM, UC_MODE_ARM | UC_MODE_ARM920, &arm920);
   if(err) {
     fprintf(stderr, "Failed on uc_open() with error returned: %u (%s)\n",
 	   err, uc_strerror(err));
@@ -27,7 +28,15 @@ int initCpus() {
     return 1;
   }
   mapBuffer(0xC0000000, 0x10000, ioRegs);
+
+  backupIoRegs = calloc(1, 0x10000);
   
+  // hack to work around the fact that unicorn doesn't take into account virtual memory when doing unmapped check,
+  // Linux runs from this space
+  mapBuffer(0xC0000000+0x10000, SZ_RAM, ram);
+  mapBuffer(0xf0000000, 0x10000, ioRegs);
+  mapBuffer(0xffff0000, SZ_RAM, ram);
+    
   return 0;
 }
 
@@ -101,9 +110,7 @@ uint32_t getReg(int reg) {
   return regVal;
 }
 
-void breakpointCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
-  uint32_t* addr = (uint32_t*) user_data;
-  printf("Execution halted at breakpoint 0x%x\n", *addr);
+void dumpRegs() {
   printf("  R0: %x\n", getReg(UC_ARM_REG_R0));
   printf("  R1: %x\n", getReg(UC_ARM_REG_R1));
   printf("  R2: %x\n", getReg(UC_ARM_REG_R2));
@@ -116,8 +123,52 @@ void breakpointCallback(uc_engine *uc, uint64_t address, uint32_t size, void *us
   printf("  R9: %x\n", getReg(UC_ARM_REG_R9));
   printf("  R10: %x\n", getReg(UC_ARM_REG_R10));
   printf("  IP: %x\n", getReg(UC_ARM_REG_IP));
+  printf("  LR %x\n", getReg(UC_ARM_REG_LR));
 
-  getc(stdin);
+  uint8_t* biors = (uint8_t*) backupIoRegs;
+  uint8_t* iors = (uint8_t*) ioRegs;
+  for(int i = 0 ; i < 0x10000 ; i++) {
+    if(biors[i] != iors[i]) {
+      printf("IO regs have changed: 0x%x (0x%x -> 0x%x)\n", i, biors[i], iors[i]);
+    }
+  }
+  
+  memcpy(backupIoRegs, ioRegs, 0x10000);
+}
+
+void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
+  uint32_t instr;
+  uc_mem_read(uc, address, &instr, 4);
+  printf("Executing: 0x%x [0x%x]\n", address, instr);
+  dumpRegs();
+  
+  printf("----\n");
+}
+
+void memoryHookCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
+  printf("%s memory at 0x%x with value 0x%x\n", (type == UC_MEM_READ ? "Reading" : "Writing"), address, value);
+}
+
+void traceCode() {
+  uc_hook cpuhook;
+  uc_hook_add(arm920, &cpuhook, UC_HOOK_CODE, codeHookCallback, NULL, 1, 0);
+
+  uc_hook memhook;
+  uc_hook_add(arm920, &memhook, UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, memoryHookCallback, NULL, 1, 0);
+}
+
+void breakpointCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
+  uint32_t* addr = (uint32_t*) user_data;
+  printf("Execution halted at breakpoint 0x%x\n", *addr);
+  memcpy(backupIoRegs, ioRegs, 0x10000);
+  dumpRegs();
+  fflush(stdout);
+  
+  char c = fgetc(stdin);
+  if(c == 't') {
+    memset(ioRegs, 0xff, 0x10000);
+    traceCode();
+  }
 }
 
 int addBreakpoint(uint32_t addr) {

@@ -19,10 +19,6 @@ static void memHookCallback(uc_engine *uc, uc_mem_type type, uint64_t address, u
   printf("Tried to access 0x%x 0x%x at PC = 0x%x\n", address, size, pc);
 }
 
-void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {
-  printf("Executing: 0x%x\n", address);
-}
-
 int init() {
   sdlWindow = SDL_CreateWindow("dolos2x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 960, 0);
   sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_ACCELERATED);
@@ -65,8 +61,7 @@ int main(int argc, char* argv[]) {
   }
 
   #ifdef DEBUG
-  uc_hook cpuhook;
-  uc_hook_add(arm920, &cpuhook, UC_HOOK_CODE, codeHookCallback, NULL, 1, 0);
+  traceCode();
   #endif
   
   uc_hook memHook;
@@ -74,13 +69,13 @@ int main(int argc, char* argv[]) {
 
   atexit(cleanup);
 
-  //  addBreakpoint(0x3d03110);
+  //  addBreakpoint(0xC00082b0);
+  //addBreakpoint(0xc0008284);
   
   startExecution();
   
   uint32_t pc;
   uc_reg_read(arm920, UC_ARM_REG_PC, &pc);
-  printf("PC is 0x%x\n", pc);
   
   return 0;
 }

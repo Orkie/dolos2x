@@ -57,3 +57,6 @@ dolos2x
 *.log
 log
 tmp/
+
+*.s
+*.img
