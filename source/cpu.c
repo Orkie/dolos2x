@@ -6,6 +6,8 @@ static void* ram;
 static void* ioRegs;
 static void* backupIoRegs;
 
+extern void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uint64_t *value, void *user_data);
+
 // TODO handle arm940
 int initCpus() {
   uc_err err = uc_open(UC_ARCH_ARM, UC_MODE_ARM | UC_MODE_ARM920, &arm920);
@@ -27,10 +29,10 @@ int initCpus() {
     fprintf(stderr, "Could not allocate IO regs\n");
     return 1;
   }
-  mapBuffer(0xC0000000, 0x10000, ioRegs);
+  clearIoCallbacks();
+  //  mapBuffer(0xC0000000, 0x10000, ioRegs);
+  uc_mmio_map(arm920, 0xC0000000, 0x10000, ioCallback, NULL);
 
-  backupIoRegs = calloc(1, 0x10000);
-  
   // hack to work around the fact that unicorn doesn't take into account virtual memory when doing unmapped check,
   // Linux runs from this space
   mapBuffer(0xC0000000+0x10000, SZ_RAM, ram);

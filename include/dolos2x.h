@@ -32,4 +32,8 @@ extern int initGPIO();
 extern int initUart();
 extern int initSD();
 
+typedef void (*mmio_access_t)(bool isRead, uint64_t *value);
+extern void registerIoCallback(uint32_t address, mmio_access_t cb);
+extern void clearIoCallbacks();
+
 #endif

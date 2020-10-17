@@ -22,7 +22,7 @@ static bool commandRunning = false;
 static uint8_t dataBuffer[BLOCK_SZ];
 static int dataCounter = 0;
 
-static uint16_t* rMEMNANDCTRLW = NULL;
+static uint16_t rMEMNANDCTRLW = 0x0;
 static uint16_t* rNFDATA = NULL;
 
 static void padFileTo(FILE* fp, long sz) {
@@ -54,7 +54,7 @@ static void startCommand() {
       #endif
       return;
     }
-    *rMEMNANDCTRLW |= 0x8080;
+    rMEMNANDCTRLW |= 0x8080;
     break;
   case CMD_ERASE_CONFIRM:
     memset(dataBuffer, 0xff, BLOCK_SZ);
@@ -66,7 +66,7 @@ static void startCommand() {
     fseek(nandFp, startAddress, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
     fflush(nandFp);
-    *rMEMNANDCTRLW |= 0x8080;
+    rMEMNANDCTRLW |= 0x8080;
     break;
   case CMD_WRITE_SETUP:
     commandRunning = true;
@@ -82,7 +82,7 @@ static void startCommand() {
     fseek(nandFp, addr, SEEK_SET);
     fwrite(dataBuffer, 1, BLOCK_SZ, nandFp);
     fflush(nandFp);
-    *rMEMNANDCTRLW |= 0x8080;
+    rMEMNANDCTRLW |= 0x8080;
     break;
   default:
     fprintf(stderr, "Unknown NAND command 0x%x\n", command);
@@ -155,14 +155,18 @@ static void handleNFDATA(uc_engine *uc, uc_mem_type type, uint64_t address, int 
   }
 }
 
-static void handleMEMNANDCTRLW(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  if(type == UC_MEM_WRITE) {
-    *rMEMNANDCTRLW = CLEARBITS(*rMEMNANDCTRLW, value);
+static void handleMEMNANDCTRLW(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rMEMNANDCTRLW;
+  } else {
+    rMEMNANDCTRLW = CLEARBITS(rMEMNANDCTRLW, *value);
   }
   #ifdef DEBUG
   printf("Write to MEMNANDCTRLW: 0x%x 0x%x\n", value, *rMEMNANDCTRLW);
   #endif
 }
+
+static void handleMEMNANDTIMEW(bool isRead, uint64_t* value) {}
 
 int initNand() {
   nandFp = fopen("nand.bin", "rb+");
@@ -177,7 +181,9 @@ int initNand() {
     return 2;
   }
 
-  rMEMNANDCTRLW = (uint16_t*) ((uint8_t*)getIORegs())+MEMNANDCTRLW;
+  registerIoCallback(MEMNANDCTRLW, handleMEMNANDCTRLW);
+  registerIoCallback(MEMNANDTIMEW, handleMEMNANDTIMEW);
+
   rNFDATA = (uint16_t*) ((uint8_t*)nandRegs)+NFDATA;
 
   mapBuffer(NAND_BASE, 4096, nandRegs);
@@ -185,7 +191,6 @@ int initNand() {
   hookRegWrite(NANDREG(NFCMD), 2, handleNFCMD);
   hookRegWrite(NANDREG(NFADDR), 2, handleNFADDR);
   hookRegRW(NANDREG(NFDATA), 2, handleNFDATA);
-  hookRegWrite(REG(MEMNANDCTRLW), 2, handleMEMNANDCTRLW);
   
   return 0;
 }
