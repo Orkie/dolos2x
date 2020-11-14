@@ -54,7 +54,7 @@ INCLUDES	:=	include
 #---------------------------------------------------------------------------------
 ARCH	:=	
 
-CFLAGS	:=	-g -Wall -O2 -std=c99 `sdl2-config --cflags` -c -save-temps
+CFLAGS	:=	-g -Wall -std=c99 `sdl2-config --cflags` -c -save-temps
 CFLAGS	+=	$(INCLUDE)
 
 AFLAGS	:=	$(ARCH)
@@ -125,7 +125,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) *.elf *.bin *.o2x
+	@rm -fr $(BUILD) *.elf
 
 
 #---------------------------------------------------------------------------------

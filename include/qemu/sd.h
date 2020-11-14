@@ -37,11 +37,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "qemu/sd_blk.h"
-
-#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, MODULE_OBJ_NAME) \
-    typedef struct InstanceType InstanceType; \
-    typedef struct ClassType ClassType;
+#include "qemu/block.h"
 
 #define OUT_OF_RANGE		(1 << 31)
 #define ADDRESS_ERROR		(1 << 30)
@@ -71,6 +67,19 @@ enum SDPhySpecificationVersion {
     SD_PHY_SPECv3_01_VERS     = 3,
 };
 
+enum SDCardStates {
+    sd_inactive_state = -1,
+    sd_idle_state = 0,
+    sd_ready_state,
+    sd_identification_state,
+    sd_standby_state,
+    sd_transfer_state,
+    sd_sendingdata_state,
+    sd_receivingdata_state,
+    sd_programming_state,
+    sd_disconnect_state,
+};
+
 typedef enum {
     SD_VOLTAGE_0_4V     = 400,  /* currently not supported */
     SD_VOLTAGE_1_8V     = 1800,
@@ -96,7 +105,6 @@ typedef enum {
 typedef struct {
     uint8_t cmd;
     uint32_t arg;
-    uint8_t crc;
 } SDRequest;
 
 
@@ -117,7 +125,7 @@ typedef struct {
 
     /* Configurable properties */
     uint8_t spec_version;
-    BlockBackend *blk;
+    BlockDevice *blk;
     bool spi;
 
     uint32_t mode;    /* current card mode, one of SDCardModes */
@@ -143,44 +151,15 @@ typedef struct {
     uint64_t data_start;
     uint32_t data_offset;
     uint8_t data[512];
-  //    qemu_irq readonly_cb;
-  //    qemu_irq inserted_cb;
-  //    QEMUTimer *ocr_power_timer;
     const char *proto_name;
     bool enable;
-  //    uint8_t dat_lines;
-  // bool cmd_line;
 } SDState;
 
-
-//OBJECT_DECLARE_TYPE(SDState, SDCardClass, SD_CARD)
-
-struct SDCardClass {
-    int (*do_command)(SDState *sd, SDRequest *req, uint8_t *response);
-    /**
-     * Write a byte to a SD card.
-     * @sd: card
-     * @value: byte to write
-     *
-     * Write a byte on the data lines of a SD card.
-     */
-    void (*write_byte)(SDState *sd, uint8_t value);
-    /**
-     * Read a byte from a SD card.
-     * @sd: card
-     *
-     * Read a byte from the data lines of a SD card.
-     *
-     * Return: byte value read
-     */
-    uint8_t (*read_byte)(SDState *sd);
-    bool (*data_ready)(SDState *sd);
-    void (*set_voltage)(SDState *sd, uint16_t millivolts);
-    uint8_t (*get_dat_lines)(SDState *sd);
-    bool (*get_cmd_line)(SDState *sd);
-    void (*enable)(SDState *sd, bool enable);
-    bool (*get_inserted)(SDState *sd);
-    bool (*get_readonly)(SDState *sd);
-};
+extern void sd_enable(SDState *sd, bool enable);
+extern SDState *sd_init(BlockDevice *blk, enum SDPhySpecificationVersion specVersion);
+extern uint8_t sd_read_byte(SDState *sd);
+extern void sd_write_byte(SDState *sd, uint8_t value);
+extern int sd_do_command(SDState *sd, SDRequest *req, uint8_t *response); // returns response length
+extern bool sd_data_ready(SDState *sd);
 
 #endif /* HW_SD_H */

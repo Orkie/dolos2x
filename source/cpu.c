@@ -126,16 +126,6 @@ void dumpRegs() {
   printf("  R10: %x\n", getReg(UC_ARM_REG_R10));
   printf("  IP: %x\n", getReg(UC_ARM_REG_IP));
   printf("  LR %x\n", getReg(UC_ARM_REG_LR));
-
-  uint8_t* biors = (uint8_t*) backupIoRegs;
-  uint8_t* iors = (uint8_t*) ioRegs;
-  for(int i = 0 ; i < 0x10000 ; i++) {
-    if(biors[i] != iors[i]) {
-      printf("IO regs have changed: 0x%x (0x%x -> 0x%x)\n", i, biors[i], iors[i]);
-    }
-  }
-  
-  memcpy(backupIoRegs, ioRegs, 0x10000);
 }
 
 void codeHookCallback(uc_engine *uc, uint64_t address, uint32_t size, void *user_data) {

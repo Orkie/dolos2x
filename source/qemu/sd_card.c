@@ -32,6 +32,8 @@
 
 #include "qemu/sd.h"
 
+////// START OF QEMU CODE, some of this may be under GPLv2
+
 #define KiB     (INT64_C(1) << 10)
 #define GiB     (INT64_C(1) << 30)
 
@@ -53,6 +55,19 @@
 static inline int ctz32(uint32_t val)
 {
     return val ? __builtin_ctz(val) : 32;
+}
+
+static inline uint32_t extract32(uint32_t value, int start, int length)
+{
+    return (value >> start) & (~0U >> (32 - length));
+}
+
+static inline uint32_t deposit32(uint32_t value, int start, int length,
+                                 uint32_t fieldval)
+{
+    uint32_t mask;
+    mask = (~0U >> (32 - length)) << start;
+    return (value & ~mask) | ((fieldval << start) & mask);
 }
 
 #define FIELD_EX32(storage, reg, field)                                   \
@@ -166,6 +181,7 @@ static inline void bitmap_zero(unsigned long *dst, long nbits)
     extract32((storage), R_ ## reg ## _ ## field ## _SHIFT,               \
               R_ ## reg ## _ ## field ## _LENGTH)
 
+////// END OF QEMU CODE, some of this may be under GPLv2
 
 #define SDSC_MAX_CAPACITY   (2 * GiB)
 
@@ -186,21 +202,6 @@ enum SDCardModes {
     sd_card_identification_mode,
     sd_data_transfer_mode,
 };
-
-enum SDCardStates {
-    sd_inactive_state = -1,
-    sd_idle_state = 0,
-    sd_ready_state,
-    sd_identification_state,
-    sd_standby_state,
-    sd_transfer_state,
-    sd_sendingdata_state,
-    sd_receivingdata_state,
-    sd_programming_state,
-    sd_disconnect_state,
-};
-
-static void sd_realize();
 
 static const char *sd_state_name(enum SDCardStates state)
 {
@@ -482,7 +483,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
 
 static void sd_set_rca(SDState *sd)
 {
-    sd->rca += 0x4567;
+    sd->rca += 0x0;
 }
 
 FIELD(CSR, AKE_SEQ_ERROR,               3,  1)
@@ -546,15 +547,6 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static int sd_req_crc_validate(SDRequest *req)
-{
-    uint8_t buffer[5];
-    buffer[0] = 0x40 | req->cmd;
-    stl_be_p(&buffer[1], req->arg);
-    return 0;
-    return sd_crc7(buffer, 5) != req->crc;	/* TODO */
-}
-
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
     stl_be_p(response, sd->card_status);
@@ -590,9 +582,8 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
-static SDState* sd_reset()
+static SDState* sd_reset(SDState* sd)
 {
-  SDState *sd = (SDState*) malloc(sizeof(SDState)); //TODO SD_CARD(dev);
     uint64_t size;
     uint64_t sect;
 
@@ -649,7 +640,7 @@ static void sd_cardchange(void *opaque, bool load)
     bool inserted = sd_get_inserted(sd);
 
     if (inserted) {
-        sd_reset();
+        sd_reset(sd);
     }
 
     // TODO - can we make this register a callback in blk for media change like qemu does?
@@ -668,26 +659,12 @@ static void sd_cardchange(void *opaque, bool load)
     }*/
 }
 
-static int sd_vmstate_pre_load(void *opaque)
-{
-    SDState *sd = opaque;
-
-    /* If the OCR state is not included (prior versions, or not
-     * needed), then the OCR must be set as powered up. If the OCR state
-     * is included, this will be replaced by the state restore.
-     */
-    sd_ocr_powerup(sd);
-
-    return 0;
-}
-
-/* Legacy initialization function for use by non-qdevified callers */
-SDState *sd_init(BlockBackend *blk, bool is_spi)
+SDState *sd_init(BlockDevice *blk, enum SDPhySpecificationVersion specVersion)
 {
   SDState *sd = malloc(sizeof(SDState));
-  sd_realize(sd);
-  
-  return sd;
+  sd->blk = blk;
+  sd->spec_version = specVersion;
+  return sd_reset(sd);
 }
 
 static void sd_erase(SDState *sd)
@@ -842,7 +819,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint32_t rca = 0x0000;
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
-
+    
     /* Not interpreting this as an app command */
     sd->card_status &= ~APP_CMD;
 
@@ -871,7 +848,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
         default:
             sd->state = sd_idle_state;
-            sd_reset(); // TODO
+            sd_reset(sd);
             return sd->spi ? sd_r1 : sd_r0;
         }
         break;
@@ -1613,16 +1590,10 @@ int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
     int last_state;
     sd_rsp_type_t rtype;
-    int rsplen;
+    int rsplen = 0;
 
     if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable) {
-        return 0;
-    }
-
-    if (sd_req_crc_validate(req)) {
-        sd->card_status |= COM_CRC_ERROR;
-        rtype = sd_illegal;
-        goto send_response;
+      return 0;
     }
 
     if (req->cmd >= SDMMC_CMD_MAX) {
@@ -1719,14 +1690,14 @@ send_response:
 
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
-    if (!sd->blk || blk_pread(sd->blk, addr, sd->data, len) < 0) {
+    if (!sd->blk || blk_read(sd->blk, addr, sd->data, len) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
     }
 }
 
 static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
-    if (!sd->blk || blk_pwrite(sd->blk, addr, sd->data, len) < 0) {
+    if (!sd->blk || blk_write(sd->blk, addr, sd->data, len) < 0) {
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
@@ -2004,7 +1975,7 @@ uint8_t sd_read_byte(SDState *sd)
     return ret;
 }
 
-static bool sd_data_ready(SDState *sd)
+bool sd_data_ready(SDState *sd)
 {
     return sd->state == sd_sendingdata_state;
 }
@@ -2012,22 +1983,5 @@ static bool sd_data_ready(SDState *sd)
 void sd_enable(SDState *sd, bool enable)
 {
     sd->enable = enable;
-}
-
-static void sd_realize(SDState* sd)
-{
-    int ret;
-
-    sd->proto_name = sd->spi ? "SPI" : "SD";
-
-    switch (sd->spec_version) {
-    case SD_PHY_SPECv1_10_VERS
-     ... SD_PHY_SPECv3_01_VERS:
-        break;
-    default:
-        fprintf(stderr, "Invalid SD card Spec version: %u", sd->spec_version);
-        return;
-    }
-
 }
 

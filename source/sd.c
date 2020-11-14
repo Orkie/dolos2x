@@ -3,8 +3,12 @@
 #include <string.h>
 #include <stdint.h>
 #include "dolos2x.h"
+#include "qemu/block.h"
+#include "qemu/sd.h"
 
-static FILE* sdFp;
+static BlockDevice* sdBlk;
+static SDState *sd;
+static uint8_t rspBuffer[16];
 
 static volatile uint16_t rGPIOIPINLVL = 0x0;
 static volatile uint16_t rSDICmdSta = 0x0;
@@ -22,8 +26,6 @@ static volatile uint16_t rSDIRSP5 = 0x0;
 static volatile uint16_t rSDIRSP6 = 0x0;
 static volatile uint16_t rSDIRSP7 = 0x0;
 
-static volatile uint16_t nextSDICmdSta = 0x0;
-
 typedef enum {
   NOT_READY,
   READY,
@@ -35,101 +37,24 @@ typedef enum {
 #define BLOCK_SZ 512
 
 static SdState state = NOT_READY;
-static bool nextCmdIsAcmd = false;
-static uint32_t blockCounter = 0;
-static uint8_t blockBuffer[BLOCK_SZ];
-static uint32_t blockNumber = 0;
 
-static uint32_t r1 = BIT(30); // SDHC, page 49 of SD pdf
+void shortResponse(uint8_t* data) {
+  rSDIRSP1 = data[0] | (data[1]<<8);
+  rSDIRSP0 = data[2] | (data[3]<<8);
 
-void shortResponse(uint32_t resp) {
-  rSDIRSP0 = resp & 0xFFFF;
-  rSDIRSP1 = (resp >> 16) & 0xFFFF;
-  nextSDICmdSta |= BIT(9);
+  rSDICmdSta |= BIT(9);
 }
 
-void longResponse(uint16_t sp0, uint16_t sp1, uint16_t sp2, uint16_t sp3, uint16_t sp4, uint16_t sp5, uint16_t sp6, uint16_t sp7) {
-  rSDIRSP0 = sp0;
-  rSDIRSP1 = sp1;
-  rSDIRSP2 = sp2;
-  rSDIRSP3 = sp3;
-  rSDIRSP4 = sp4;
-  rSDIRSP5 = sp5;
-  rSDIRSP6 = sp6;
-  rSDIRSP7 = sp7;
-  nextSDICmdSta |= BIT(9);
-}
-
-void r6Response() {
-  shortResponse(CARD_RCA<<16);
-}
-
-void r1Response() {
-  shortResponse(r1);
-}
-
-void r1bResponse() {
-  shortResponse(r1);
-}
-
-void r2Response() {
-  longResponse(0, 1 << 14, 0, 0, 0, 0, 0, 0);
-}
-
-static int cmd0() {
-  state = NOT_READY;
-  nextCmdIsAcmd = false;
-  r1 &= ~BIT(31);
-}
-
-static int cmd8() {
-  r1Response();
-  state = READY;
-  r1 |= BIT(31);
-}
-
-static int cmd55() {
-  nextCmdIsAcmd = true;
-  r1Response();
-}
-
-static int acmd41() {
-  r1Response();
-}
-
-static int cmd2() {
-  longResponse(0, 0, 0, 0, 0, 0, 0, 0);
-}
-
-static int cmd3() {
-  r6Response();
-}
-
-static int cmd9() {
-  r2Response();
-}
-
-static int cmd7() {
-  r1bResponse();
-}
-
-static int cmd18(uint32_t arg) {
-  state = BLOCK_READ;
-  blockCounter = 0;
-  blockNumber = arg;
-  r1Response();
-}
-
-static int cmd25(uint32_t arg) {
-  state = BLOCK_WRITE;
-  blockCounter = 0;
-  blockNumber = arg;
-  r1Response();
-}
-
-static int cmd12() {
-  state = READY;
-  r1bResponse();
+void longResponse(uint8_t* data) {
+  rSDIRSP0 = data[3] | (data[2]<<8);
+  rSDIRSP1 = data[1] | (data[0]<<8);
+  rSDIRSP2 = data[5] | (data[4]<<8);
+  rSDIRSP3 = data[7] | (data[6]<<8);
+  rSDIRSP4 = data[9] | (data[8]<<8);
+  rSDIRSP5 = data[11] | (data[10]<<8);
+  rSDIRSP6 = data[13] | (data[12]<<8);
+  rSDIRSP7 = data[15] | (data[14]<<8);
+  rSDICmdSta |= BIT(9);
 }
 
 static void handleGPIOIPINLVL(bool isRead, uint64_t* value) {
@@ -140,9 +65,9 @@ static void handleGPIOIPINLVL(bool isRead, uint64_t* value) {
 
 static void handleSDICmdSta(bool isRead, uint64_t* value) {
   if(isRead) {
-      *value = nextSDICmdSta;
+      *value = rSDICmdSta;
   } else {
-    nextSDICmdSta = CLEARBITS(rSDICmdSta, (uint16_t)(*value));
+    rSDICmdSta = CLEARBITS(rSDICmdSta, (uint16_t)(*value));
   }
 }
 
@@ -157,43 +82,22 @@ static void handleSDICmdCon(bool isRead, uint64_t* value) {
 #endif
     rSDICmdCon = (uint16_t) (*value);
     if((*value) & BIT(8)) {
-      nextSDICmdSta = BIT(11);
-    
-      switch(cmd) {
+      // command triggered
+      SDRequest command = {.cmd = cmd, .arg = arg};
+      int rspLen = sd_do_command(sd, &command, rspBuffer);
+      rSDICmdSta |= BIT(11);
+      switch(rspLen) {
       case 0:
-	cmd0();
+	rSDICmdSta |= BIT(9);
 	break;
-      case 2:
-	cmd2();
+      case 4:
+	shortResponse(rspBuffer);
 	break;
-      case 3:
-	cmd3();
+      case 16:
+	longResponse(rspBuffer);
 	break;
-      case 7:
-	cmd7();
-	break;
-      case 8:
-	cmd8();
-	break;
-      case 9:
-	cmd9();
-	break;
-      case 12:
-	cmd12();
-	break;
-      case 18:
-	cmd18(arg);
-	break;
-      case 25:
-	cmd25(arg);
-      case 55:
-	cmd55();
-	break;
-      case 41:
-	if(nextCmdIsAcmd) {
-	  acmd41();
-	}
-	break;
+      default:
+	fprintf(stderr, "Illegal SD response length: %d\n", rspLen);
       }
     }    
   }
@@ -211,15 +115,15 @@ static void handleSDICmdArgH(bool isRead, uint64_t* value) {
   if(isRead) {
     *value = rSDICmdArgH;
   } else {
-    rSDICmdArgL = *value;
+    rSDICmdArgH = *value;
   }
 }
 
 static void handleSDIFSTA(bool isRead, uint64_t* value) {
   if(isRead) {
-    if(state == BLOCK_READ) {
+    if(sd->state == sd_sendingdata_state) {
       *value = 0x1;
-    } else if(state == BLOCK_WRITE) {
+    } else if(sd->state == sd_receivingdata_state) {
       *value = BIT(13);
     }
   }
@@ -227,14 +131,9 @@ static void handleSDIFSTA(bool isRead, uint64_t* value) {
 
 static void handleSDIDAT(bool isRead, uint64_t* value) {
   if(isRead) {
-    if(blockCounter % BLOCK_SZ == 0) {
-      memset(blockBuffer, 0x0, BLOCK_SZ);
-      fseek(sdFp, blockNumber*BLOCK_SZ, SEEK_SET);
-      fread(blockBuffer, 1, BLOCK_SZ, sdFp);
-      blockNumber++;
-    }
-    *value = blockBuffer[blockCounter%BLOCK_SZ];
-    blockCounter++;
+    *value = sd_read_byte(sd);
+  } else {
+    sd_write_byte(sd, *value);
   }
 }
 
@@ -305,11 +204,14 @@ int initSD() {
 
   rGPIOIPINLVL = ~BIT(14);
 
-  sdFp = fopen("sd.img", "rb+");
-  if(sdFp == NULL) {
+  sdBlk = blk_open("sd.img", false);
+  if(sdBlk == NULL) {
     fprintf(stderr, "Error opening SD image\n");
     return 1;
   }
+
+  sd = sd_init(sdBlk, SD_PHY_SPECv2_00_VERS);
+  sd_enable(sd, true);
   
   return 0;
 }

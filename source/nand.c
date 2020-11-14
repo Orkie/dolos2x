@@ -22,7 +22,7 @@ static bool commandRunning = false;
 static uint8_t dataBuffer[BLOCK_SZ];
 static int dataCounter = 0;
 
-static uint16_t rMEMNANDCTRLW = 0x0;
+uint16_t rMEMNANDCTRLW = 0x0;
 static uint16_t* rNFDATA = NULL;
 
 static void padFileTo(FILE* fp, long sz) {
@@ -32,6 +32,7 @@ static void padFileTo(FILE* fp, long sz) {
   for(long i = 0 ; i < paddingNeeded ; i++) {
     fputc(0xff, fp);
   }
+  fseek(fp, 0, SEEK_SET);
 }
 
 static void startCommand() {
@@ -42,6 +43,8 @@ static void startCommand() {
   addr = addrBuffer;
   addrBuffer = 0x0;
 
+  uint32_t startAddress = BLOCK_SZ * addr;
+  
   switch(command) {
   case CMD_READ:
     commandRunning = true;
@@ -58,7 +61,6 @@ static void startCommand() {
     break;
   case CMD_ERASE_CONFIRM:
     memset(dataBuffer, 0xff, BLOCK_SZ);
-    uint32_t startAddress = BLOCK_SZ * addr;
     #ifdef DEBUG
     printf("Erasing block %d, addr 0x%x\n", addr, startAddress);
     #endif
@@ -90,9 +92,9 @@ static void startCommand() {
 }
 
 static void handleNFCMD(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  #ifdef DEBUG
+#ifdef DEBUG
   printf("Write to NFCMD: 0x%x\n", value);
-  #endif
+#endif
   command = value;
   if(command == CMD_ERASE_CONFIRM) {
     startCommand();
@@ -162,7 +164,7 @@ static void handleMEMNANDCTRLW(bool isRead, uint64_t* value) {
     rMEMNANDCTRLW = CLEARBITS(rMEMNANDCTRLW, *value);
   }
   #ifdef DEBUG
-  printf("Write to MEMNANDCTRLW: 0x%x 0x%x\n", value, *rMEMNANDCTRLW);
+  printf("Write to MEMNANDCTRLW: 0x%x 0x%x\n", value, rMEMNANDCTRLW);
   #endif
 }
 
@@ -174,6 +176,7 @@ int initNand() {
     fprintf(stderr, "Error opening NAND image\n");
     return 1;
   }
+  padFileTo(nandFp, 512*1024);
 
   nandRegs = calloc(1, 4096);
   if(nandRegs == NULL) {

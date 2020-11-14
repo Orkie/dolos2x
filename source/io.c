@@ -11,6 +11,10 @@ void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uin
     return;
   }
 
+  #ifdef DEBUG
+  printf("IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, value);
+  #endif
+  
   mmio_access_t callback = ioCallbacks[address];
   if(callback == NULL) {
     printf("Unhandled IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, value);

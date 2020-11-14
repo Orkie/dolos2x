@@ -44,7 +44,9 @@ int main(int argc, char* argv[]) {
   tcsetattr(STDIN_FILENO,TCSANOW, &old_tio);
   new_tio.c_lflag &=(~ICANON & ~ECHO);
   tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-  
+
+  atexit(cleanup);
+
   uc_engine* arm920 = getArm920();
   
   if(initNand() ||
@@ -61,13 +63,11 @@ int main(int argc, char* argv[]) {
   }
 
   #ifdef DEBUG
-  traceCode();
+  //traceCode();
   #endif
   
   uc_hook memHook;
   uc_hook_add(arm920, &memHook, UC_HOOK_MEM_UNMAPPED, memHookCallback, NULL, 1, 0);
-
-  atexit(cleanup);
 
   //  addBreakpoint(0xC00082b0);
   //addBreakpoint(0xc0008284);
