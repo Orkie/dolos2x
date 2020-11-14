@@ -8,21 +8,31 @@
 static SDL_Thread* uartThread;
 static SDL_mutex* fifoMutex;
 
-static volatile uint16_t* rFSTATUS0 = NULL;
-static volatile uint8_t* rRHB0 = NULL;
+static volatile uint16_t rFSTATUS0 = 0x0;
+static volatile uint8_t rRHB0 = 0x0;
 static volatile int fifoCount = 0;
 static uint8_t fifo[16];
 
-static void handleUartPut(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  printf("%c", (char) value);
-  fflush(stdout);
+static void handleTHB0(bool isRead, uint64_t* value) {
+  if(!isRead) {
+    printf("%c", (char) (*value));
+    fflush(stdout);
+  }
 }
 
-static void handleUartGet(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  SDL_LockMutex(fifoMutex);
-  *rRHB0 = fifo[--fifoCount];
-  *rFSTATUS0 = *rFSTATUS0 - 1;
-  SDL_UnlockMutex(fifoMutex);
+static void handleRHB0(bool isRead, uint64_t* value) {
+  if(isRead) {
+    SDL_LockMutex(fifoMutex);
+    *value = fifo[--fifoCount];
+    rFSTATUS0 = rFSTATUS0 - 1;
+    SDL_UnlockMutex(fifoMutex);
+  }
+}
+
+static void handleFSTATUS0(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rFSTATUS0;
+  }
 }
 
 int uartThreadFn(void* data) {
@@ -35,7 +45,7 @@ int uartThreadFn(void* data) {
 	continue;
       } else {
 	fifo[fifoCount++] = (char) c;
-	*rFSTATUS0 = fifoCount;
+	rFSTATUS0 = fifoCount;
 	SDL_UnlockMutex(fifoMutex);
 	break;
       }
@@ -44,12 +54,10 @@ int uartThreadFn(void* data) {
 }
 
 int initUart() {
-  hookRegWrite(REG(THB0), 1, handleUartPut);
-  hookRegRead(REG(RHB0), 1, handleUartGet);
-
-  rFSTATUS0 = ((uint16_t*)getIORegs())+(FSTATUS0>>1);
-  rRHB0 = ((uint8_t*)getIORegs())+(RHB0);
-
+  registerIoCallback(THB0, handleTHB0);
+  registerIoCallback(RHB0, handleRHB0);
+  registerIoCallback(FSTATUS0, handleFSTATUS0);
+  
   fifoMutex = SDL_CreateMutex();
   uartThread = SDL_CreateThread(uartThreadFn, "UART Thread", NULL);
 

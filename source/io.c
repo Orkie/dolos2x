@@ -13,7 +13,7 @@ void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uin
 
   mmio_access_t callback = ioCallbacks[address];
   if(callback == NULL) {
-    printf("Unhandled IO register callback... type[%d] address[0x%x], size[%d], value[0x%x]\n", type, address, size, value);
+    printf("Unhandled IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, value);
     return;
   }
 

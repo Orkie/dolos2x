@@ -6,21 +6,21 @@
 
 static FILE* sdFp;
 
-static volatile uint16_t* rGPIOIPINLVL = NULL;
-static volatile uint16_t* rSDICmdSta = NULL;
-static volatile uint16_t* rSDICmdCon = NULL;
-static volatile uint16_t* rSDICmdArgL = NULL;
-static volatile uint16_t* rSDICmdArgH = NULL;
-static volatile uint16_t* rSDIFSTA = NULL;
-static volatile uint8_t* rSDIDAT = NULL;
-static volatile uint16_t* rSDIRSP0 = NULL;
-static volatile uint16_t* rSDIRSP1 = NULL;
-static volatile uint16_t* rSDIRSP2 = NULL;
-static volatile uint16_t* rSDIRSP3 = NULL;
-static volatile uint16_t* rSDIRSP4 = NULL;
-static volatile uint16_t* rSDIRSP5 = NULL;
-static volatile uint16_t* rSDIRSP6 = NULL;
-static volatile uint16_t* rSDIRSP7 = NULL;
+static volatile uint16_t rGPIOIPINLVL = 0x0;
+static volatile uint16_t rSDICmdSta = 0x0;
+static volatile uint16_t rSDICmdCon = 0x0;
+static volatile uint16_t rSDICmdArgL = 0x0;
+static volatile uint16_t rSDICmdArgH = 0x0;
+static volatile uint16_t rSDIFSTA = 0x0;
+static volatile uint8_t rSDIDAT = 0x0;
+static volatile uint16_t rSDIRSP0 = 0x0;
+static volatile uint16_t rSDIRSP1 = 0x0;
+static volatile uint16_t rSDIRSP2 = 0x0;
+static volatile uint16_t rSDIRSP3 = 0x0;
+static volatile uint16_t rSDIRSP4 = 0x0;
+static volatile uint16_t rSDIRSP5 = 0x0;
+static volatile uint16_t rSDIRSP6 = 0x0;
+static volatile uint16_t rSDIRSP7 = 0x0;
 
 static volatile uint16_t nextSDICmdSta = 0x0;
 
@@ -43,20 +43,20 @@ static uint32_t blockNumber = 0;
 static uint32_t r1 = BIT(30); // SDHC, page 49 of SD pdf
 
 void shortResponse(uint32_t resp) {
-  *rSDIRSP0 = resp & 0xFFFF;
-  *rSDIRSP1 = (resp >> 16) & 0xFFFF;
+  rSDIRSP0 = resp & 0xFFFF;
+  rSDIRSP1 = (resp >> 16) & 0xFFFF;
   nextSDICmdSta |= BIT(9);
 }
 
 void longResponse(uint16_t sp0, uint16_t sp1, uint16_t sp2, uint16_t sp3, uint16_t sp4, uint16_t sp5, uint16_t sp6, uint16_t sp7) {
-  *rSDIRSP0 = sp0;
-  *rSDIRSP1 = sp1;
-  *rSDIRSP2 = sp2;
-  *rSDIRSP3 = sp3;
-  *rSDIRSP4 = sp4;
-  *rSDIRSP5 = sp5;
-  *rSDIRSP6 = sp6;
-  *rSDIRSP7 = sp7;
+  rSDIRSP0 = sp0;
+  rSDIRSP1 = sp1;
+  rSDIRSP2 = sp2;
+  rSDIRSP3 = sp3;
+  rSDIRSP4 = sp4;
+  rSDIRSP5 = sp5;
+  rSDIRSP6 = sp6;
+  rSDIRSP7 = sp7;
   nextSDICmdSta |= BIT(9);
 }
 
@@ -132,107 +132,178 @@ static int cmd12() {
   r1bResponse();
 }
 
-static void handleSDIFSTA(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  if(state == BLOCK_READ) {
-    *rSDIFSTA = 0x1;
-  } else if(state == BLOCK_WRITE) {
-    *rSDIFSTA = BIT(13);
+static void handleGPIOIPINLVL(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rGPIOIPINLVL;
   }
 }
 
-static void handleSDIDAT(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  if(blockCounter % BLOCK_SZ == 0) {
-    memset(blockBuffer, 0x0, BLOCK_SZ);
-    fseek(sdFp, blockNumber*BLOCK_SZ, SEEK_SET);
-    fread(blockBuffer, 1, BLOCK_SZ, sdFp);
-    blockNumber++;
-  }
-  *rSDIDAT = blockBuffer[blockCounter%BLOCK_SZ];
-  blockCounter++;
-}
-
-static void handleSDICmdSta(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  if(type == UC_MEM_WRITE) {
-    nextSDICmdSta = CLEARBITS(*rSDICmdSta, (uint16_t)value);
+static void handleSDICmdSta(bool isRead, uint64_t* value) {
+  if(isRead) {
+      *value = nextSDICmdSta;
   } else {
-    *rSDICmdSta = nextSDICmdSta;
+    nextSDICmdSta = CLEARBITS(rSDICmdSta, (uint16_t)(*value));
   }
 }
 
-static void handleSDICmdCon(uc_engine *uc, uc_mem_type type, uint64_t address, int size, int64_t value, void *user_data) {
-  uint8_t cmd = value & 0x3F;
-  uint32_t arg = (*rSDICmdArgH << 16) | *rSDICmdArgL;
-  #ifdef DEBUG
-  printf("DOLOS: SD command %d, arg %d\n", cmd, arg);
-  #endif
-  *rSDICmdCon = (uint16_t) value;
-  if(value & BIT(8)) {
-    nextSDICmdSta = BIT(11);
+static void handleSDICmdCon(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDICmdCon;
+  } {
+    uint8_t cmd = (*value) & 0x3F;
+    uint32_t arg = (rSDICmdArgH << 16) | rSDICmdArgL;
+#ifdef DEBUG
+    printf("DOLOS: SD command %d, arg %d\n", cmd, arg);
+#endif
+    rSDICmdCon = (uint16_t) (*value);
+    if((*value) & BIT(8)) {
+      nextSDICmdSta = BIT(11);
     
-    switch(cmd) {
-    case 0:
-      cmd0();
-      break;
-    case 2:
-      cmd2();
-      break;
-    case 3:
-      cmd3();
-      break;
-    case 7:
-      cmd7();
-      break;
-    case 8:
-      cmd8();
-      break;
-    case 9:
-      cmd9();
-      break;
-    case 12:
-      cmd12();
-      break;
-    case 18:
-      cmd18(arg);
-      break;
-    case 25:
-      cmd25(arg);
-    case 55:
-      cmd55();
-      break;
-    case 41:
-      if(nextCmdIsAcmd) {
-	acmd41();
+      switch(cmd) {
+      case 0:
+	cmd0();
+	break;
+      case 2:
+	cmd2();
+	break;
+      case 3:
+	cmd3();
+	break;
+      case 7:
+	cmd7();
+	break;
+      case 8:
+	cmd8();
+	break;
+      case 9:
+	cmd9();
+	break;
+      case 12:
+	cmd12();
+	break;
+      case 18:
+	cmd18(arg);
+	break;
+      case 25:
+	cmd25(arg);
+      case 55:
+	cmd55();
+	break;
+      case 41:
+	if(nextCmdIsAcmd) {
+	  acmd41();
+	}
+	break;
       }
-      break;
+    }    
+  }
+}
+
+static void handleSDICmdArgL(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDICmdArgL;
+  } else {
+    rSDICmdArgL = *value;
+  }
+}
+
+static void handleSDICmdArgH(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDICmdArgH;
+  } else {
+    rSDICmdArgL = *value;
+  }
+}
+
+static void handleSDIFSTA(bool isRead, uint64_t* value) {
+  if(isRead) {
+    if(state == BLOCK_READ) {
+      *value = 0x1;
+    } else if(state == BLOCK_WRITE) {
+      *value = BIT(13);
     }
   }
 }
 
+static void handleSDIDAT(bool isRead, uint64_t* value) {
+  if(isRead) {
+    if(blockCounter % BLOCK_SZ == 0) {
+      memset(blockBuffer, 0x0, BLOCK_SZ);
+      fseek(sdFp, blockNumber*BLOCK_SZ, SEEK_SET);
+      fread(blockBuffer, 1, BLOCK_SZ, sdFp);
+      blockNumber++;
+    }
+    *value = blockBuffer[blockCounter%BLOCK_SZ];
+    blockCounter++;
+  }
+}
+
+static void handleSDIRSP0(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP0;
+  }
+}
+
+static void handleSDIRSP1(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP1;
+  }
+}
+
+static void handleSDIRSP2(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP2;
+  }
+}
+
+static void handleSDIRSP3(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP3;
+  }
+}
+
+static void handleSDIRSP4(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP4;
+  }
+}
+
+static void handleSDIRSP5(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP5;
+  }
+}
+
+static void handleSDIRSP6(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP6;
+  }
+}
+
+static void handleSDIRSP7(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rSDIRSP7;
+  }
+}
+
 int initSD() {
-  rGPIOIPINLVL = ((uint16_t*)getIORegs())+(GPIOIPINLVL>>1);
-  rSDICmdSta = ((uint16_t*)getIORegs())+(SDICmdSta>>1);
-  rSDICmdCon = ((uint16_t*)getIORegs())+(SDICmdCon>>1);
-  rSDICmdArgL = ((uint16_t*)getIORegs())+(SDICmdArgL>>1);
-  rSDICmdArgH = ((uint16_t*)getIORegs())+(SDICmdArgH>>1);
-  rSDIFSTA = ((uint16_t*)getIORegs())+(SDIFSTA>>1);
-  rSDIDAT = ((uint8_t*)getIORegs())+SDIDAT;
-  rSDIRSP0 = ((uint16_t*)getIORegs())+(SDIRSP0>>1);
-  rSDIRSP1 = ((uint16_t*)getIORegs())+(SDIRSP1>>1);
-  rSDIRSP2 = ((uint16_t*)getIORegs())+(SDIRSP2>>1);
-  rSDIRSP3 = ((uint16_t*)getIORegs())+(SDIRSP3>>1);
-  rSDIRSP4 = ((uint16_t*)getIORegs())+(SDIRSP4>>1);
-  rSDIRSP5 = ((uint16_t*)getIORegs())+(SDIRSP5>>1);
-  rSDIRSP6 = ((uint16_t*)getIORegs())+(SDIRSP6>>1);
-  rSDIRSP7 = ((uint16_t*)getIORegs())+(SDIRSP7>>1);
+  registerIoCallback(GPIOIPINLVL, handleGPIOIPINLVL);
+  registerIoCallback(SDICmdSta, handleSDICmdSta);
+  registerIoCallback(SDICmdCon, handleSDICmdCon);
+  registerIoCallback(SDICmdArgL, handleSDICmdArgL);
+  registerIoCallback(SDICmdArgH, handleSDICmdArgH);
+  registerIoCallback(SDIFSTA, handleSDIFSTA);
+  registerIoCallback(SDIDAT, handleSDIDAT);
+  registerIoCallback(SDIRSP0, handleSDIRSP0);
+  registerIoCallback(SDIRSP1, handleSDIRSP1);
+  registerIoCallback(SDIRSP2, handleSDIRSP2);
+  registerIoCallback(SDIRSP3, handleSDIRSP3);
+  registerIoCallback(SDIRSP4, handleSDIRSP4);
+  registerIoCallback(SDIRSP5, handleSDIRSP5);
+  registerIoCallback(SDIRSP6, handleSDIRSP6);
+  registerIoCallback(SDIRSP7, handleSDIRSP7);
 
-  *rGPIOIPINLVL = ~BIT(14);
-  *rSDICmdSta = 0x0;
-
-  hookRegWrite(REG(SDICmdCon), 2, handleSDICmdCon);
-  hookRegRW(REG(SDICmdSta), 2, handleSDICmdSta);
-
-  hookRegRead(REG(SDIFSTA), 2, handleSDIFSTA);
-  hookRegRead(REG(SDIDAT), 1, handleSDIDAT);
+  rGPIOIPINLVL = ~BIT(14);
 
   sdFp = fopen("sd.img", "rb+");
   if(sdFp == NULL) {

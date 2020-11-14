@@ -5,7 +5,7 @@
 #include <SDL.h>
 #include "dolos2x.h"
 
-static volatile uint16_t* rGPIOBPINLVL = NULL;
+static volatile uint16_t rGPIOBPINLVL = 0x0;
 
 static uint32_t rgbFbAddr = 0x0;
 
@@ -21,9 +21,9 @@ int videoThreadFn(void* data) {
     if((currentTicks - lastVsync) >= 16) {
       // TODO - figure out correct timing for v/hsync on GP2X
       lastVsync = currentTicks;
-      *rGPIOBPINLVL |= BIT(4);
+      rGPIOBPINLVL |= BIT(4);
       SDL_Delay(40);
-      *rGPIOBPINLVL = CLEARBITS(*rGPIOBPINLVL, BIT(4));
+      rGPIOBPINLVL = CLEARBITS(rGPIOBPINLVL, BIT(4));
 
       // update screen
       uint8_t* ram = getRam();
@@ -50,11 +50,17 @@ static void handleRgbFbAddrSet(uc_engine *uc, uc_mem_type type, uint64_t address
   }
 }
 
+static void handleGPIOBPINLVL(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rGPIOBPINLVL;
+  }
+}
+
 int initVideo(SDL_Renderer* renderer) {
   sdlRenderer = renderer;
 
-  rGPIOBPINLVL = ((uint16_t*)getIORegs())+(GPIOBPINLVL>>1);
-
+  registerIoCallback(GPIOBPINLVL, handleGPIOBPINLVL);
+  
   hookRegWrite(REG(MLC_STL_OADRL), 2, handleRgbFbAddrSet);
   hookRegWrite(REG(MLC_STL_OADRH), 2, handleRgbFbAddrSet);
 
