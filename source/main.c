@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
   uc_hook_add(arm920, &memHook, UC_HOOK_MEM_UNMAPPED, memHookCallback, NULL, 1, 0);
 
   //  addBreakpoint(0xC00082b0);
-  //addBreakpoint(0xc0008284);
+  //  addBreakpoint(0xc0008284);
   
   startExecution();
   

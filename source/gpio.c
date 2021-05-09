@@ -8,6 +8,8 @@ static SDL_Thread *eventThread;
 static volatile uint16_t rGPIOCPINLVL = 0xFFFF;
 static volatile uint16_t rGPIODPINLVL = 0xFFFF;
 static volatile uint16_t rGPIOMPINLVL = 0xFFFF;
+static volatile uint16_t rGPIOIALTFNHI = 0xAAAA;
+static volatile uint16_t rGPIOIALTFNLOW = 0xAAAA;
 
 void toggle(volatile uint16_t* reg, int bit, bool isUp) {
   *reg = isUp ? (*reg | BIT(bit)) : (CLEARBITS(*reg, BIT(bit)));
@@ -15,6 +17,10 @@ void toggle(volatile uint16_t* reg, int bit, bool isUp) {
 
 void toggleKey(SDL_Keycode key, bool isUp) {
   switch(key) {
+  case SDLK_d:
+    printf("hello\n");
+    traceCode();
+    break;
   case SDLK_ESCAPE:
     exit(0);
     break;
@@ -87,11 +93,30 @@ static void handleGPIOMPINLVL(bool isRead, uint64_t* value) {
   *value = rGPIOMPINLVL;
 }
 
+static void handleGPIOIALTFNHI(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rGPIOIALTFNHI;
+  } else {
+    rGPIOIALTFNHI = *value;
+  }
+}
+
+static void handleGPIOIALTFNLOW(bool isRead, uint64_t* value) {
+  if(isRead) {
+    *value = rGPIOIALTFNLOW;
+  } else {
+    rGPIOIALTFNLOW = *value;
+  }
+}
+
 int initGPIO() {
   registerIoCallback(GPIOCPINLVL, handleGPIOCPINLVL);
   registerIoCallback(GPIODPINLVL, handleGPIODPINLVL);
   registerIoCallback(GPIOMPINLVL, handleGPIOMPINLVL);
-  
+
+  registerIoCallback(GPIOIALTFNHI, handleGPIOIALTFNHI);
+  registerIoCallback(GPIOIALTFNLOW, handleGPIOIALTFNLOW);
+
   eventThread = SDL_CreateThread(eventThreadFn, "Event Thread", NULL);
 
   return 0;

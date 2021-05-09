@@ -8,6 +8,40 @@ static void* backupIoRegs;
 
 extern void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uint64_t *value, void *user_data);
 
+enum arm_cpu_mode {
+  ARM_CPU_MODE_USR = 0x10,
+  ARM_CPU_MODE_FIQ = 0x11,
+  ARM_CPU_MODE_IRQ = 0x12,
+  ARM_CPU_MODE_SVC = 0x13,
+  ARM_CPU_MODE_MON = 0x16,
+  ARM_CPU_MODE_ABT = 0x17,
+  ARM_CPU_MODE_HYP = 0x1a,
+  ARM_CPU_MODE_UND = 0x1b,
+  ARM_CPU_MODE_SYS = 0x1f
+};
+
+uint32_t getReg(int reg);
+
+extern void switch_mode(void*, int);
+
+void exceptionCallback(uc_engine *uc, uint32_t intno, void *user_data) {
+  switch(intno) {
+  case 4:
+    //    switch_mode(arm920->cpu, ARM_CPU_MODE_ABT);
+    //    printf("got a data abort\n");
+    //    printf("  R14: %x\n", getReg(UC_ARM_REG_R14));
+    break;
+    //  default:
+    //    fprintf(stderr, "Unhandled CPU exception type: %d\n", intno);
+  }
+  static bool run = false;
+  if(!run) {
+    traceCode();
+    run = true;
+  }
+  return;
+}
+
 // TODO handle arm940
 int initCpus() {
   uc_err err = uc_open(UC_ARCH_ARM, UC_MODE_ARM | UC_MODE_ARM920, &arm920);
@@ -38,6 +72,9 @@ int initCpus() {
   mapBuffer(0xC0000000+0x10000, SZ_RAM, ram);
   mapBuffer(0xf0000000, 0x10000, ioRegs);
   mapBuffer(0xffff0000, SZ_RAM, ram);
+  
+  uc_hook exceptionHook;
+  uc_hook_add(arm920, &exceptionHook, UC_HOOK_INTR, exceptionCallback, NULL, 1, 0);
     
   return 0;
 }

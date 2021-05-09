@@ -4,6 +4,7 @@
 #define MAX_REGS 0x10000
 
 static mmio_access_t ioCallbacks[MAX_REGS];
+static uint32_t ioDummy[MAX_REGS];
 
 void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uint64_t *value, void *user_data) {
   if(address >= MAX_REGS) {
@@ -11,13 +12,19 @@ void ioCallback(uc_engine *uc, uc_mem_type type, uint64_t address, int size, uin
     return;
   }
 
-  #ifdef DEBUG
-  printf("IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, value);
-  #endif
+  //#ifdef DEBUG
+  printf("IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, *value);
+  //#endif
   
   mmio_access_t callback = ioCallbacks[address];
   if(callback == NULL) {
-    printf("Unhandled IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, value);
+    printf("Unhandled IO register callback... %s address[0x%x], size[%d], value[0x%x]\n", (type == UC_MEM_READ ? "READ" : type == UC_MEM_WRITE ? "WRITE" : "UKNOWN ACCESS"), address, size, *value);
+    if(type == UC_MEM_READ) {
+      *value = ioDummy[address];
+      printf("returning 0x%x\n", ioDummy[address]);
+    } else {
+      ioDummy[address] = *value;
+    }
     return;
   }
 

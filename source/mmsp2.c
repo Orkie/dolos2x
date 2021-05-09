@@ -6,6 +6,7 @@
 static volatile uint16_t rFPLLVSETREG = 0x0;
 static volatile uint16_t rUPLLVSETREG = 0x0;
 static volatile uint16_t rAPLLVSETREG = 0x0;
+static volatile uint16_t rMEMCFGW = 0x0;
 
 static void handleFPLLSETVREG(bool isRead, uint64_t* value) {
   if(!isRead) {
@@ -43,6 +44,15 @@ static void handleAPLLVSETREG(bool isRead, uint64_t* value) {
   }
 }
 
+static void handleMEMCFGW(bool isRead, uint64_t* value) {
+  printf("handling MEMCFGW\n");
+  if(isRead) {
+    *value = rMEMCFGW;
+  } else {
+    rMEMCFGW = *value;
+  }
+}
+
 int initMMSP2() {
   registerIoCallback(FPLLSETVREG, handleFPLLSETVREG);
   registerIoCallback(FPLLVSETREG, handleFPLLVSETREG);
@@ -51,5 +61,6 @@ int initMMSP2() {
   registerIoCallback(APLLSETVREG, handleAPLLSETVREG);
   registerIoCallback(APLLVSETREG, handleAPLLVSETREG);
 
+  registerIoCallback(MEMCFGW, handleMEMCFGW);
   return 0;
 }

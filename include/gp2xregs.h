@@ -210,6 +210,7 @@ extern r32 _fiq;
 #define GPIOEALTFNHI 0x1048
 #define GPIOHALTFNLOW 0x102E
 #define GPIOHALTFNHI 0x104E
+#define GPIOIALTFNLOW 0x1030
 #define GPIOIALTFNHI 0x1050
 #define GPIOJALTFNHI 0x1052
 #define GPIOKALTFNLOW 0x1034
@@ -529,5 +530,7 @@ typedef struct {
 #define ROT_PICSIZE 0x2410C
 #define ROT_SRCADDR 0x24110
 #define ROT_DSTADDR 0x24114
+
+#define MEMCFGW 0x3A00
 
 #endif
