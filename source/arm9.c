@@ -24,21 +24,21 @@ typedef enum {
 } __arm9_condition;
 
 typedef enum {
-  OP_AND = 0b0000,
-  OP_SUB = 0b0010,
-  OP_RSB = 0b0011,
-  OP_ADD = 0b0100,
-  OP_ADC = 0b0101,
-  OP_SBC = 0b0110,
-  OP_RSC = 0b0111,
-  OP_TST = 0b1000,
-  OP_TEQ = 0b1001,
-  OP_CMP = 0b1010,
-  OP_CMN = 0b1011,
-  OP_ORR = 0b1100,
-  OP_MOV = 0b1101,
-  OP_BIC = 0b1110,
-  OP_MVN = 0b1111
+  OPERAND_AND = 0b0000,
+  OPERAND_SUB = 0b0010,
+  OPERAND_RSB = 0b0011,
+  OPERAND_ADD = 0b0100,
+  OPERAND_ADC = 0b0101,
+  OPERAND_SBC = 0b0110,
+  OPERAND_RSC = 0b0111,
+  OPERAND_TST = 0b1000,
+  OPERAND_TEQ = 0b1001,
+  OPERAND_CMP = 0b1010,
+  OPERAND_CMN = 0b1011,
+  OPERAND_ORR = 0b1100,
+  OPERAND_MOV = 0b1101,
+  OPERAND_BIC = 0b1110,
+  OPERAND_MVN = 0b1111
 } __arm9_opcode;
 
 typedef enum {
@@ -49,13 +49,33 @@ typedef enum {
   // TODO - the rest
 } __arm9_instruction_type;
 
+typedef enum {
+  REG_R0 = 0x0,
+  REG_R1 = 0x1,
+  REG_R2 = 0x2,
+  REG_R3 = 0x3,
+  REG_R4 = 0x4,
+  REG_R5 = 0x5,
+  REG_R6 = 0x6,
+  REG_R7 = 0x7,
+  REG_R8 = 0x8,
+  REG_R9 = 0x9,
+  REG_R10 = 0x10,
+  REG_R11 = 0x11,
+  REG_R12 = 0x12,
+  REG_R13 = 0x13,
+  REG_R14 = 0x14,
+  REG_R15 = 0x15,
+  REG_PC = 0x15
+} __arm9_register;
+
 typedef struct {
   uint8_t imm;
   uint8_t rotate;
 } __arm9_immediate_operand;
 
 typedef struct {
-  uint8_t reg;
+  __arm9_register reg;
   uint8_t shift;
 } __arm9_register_operand;
 
@@ -68,7 +88,11 @@ typedef struct {
 } __arm9_operand2;
 
 typedef struct {
+  __arm9_opcode opcode;
+  bool set_condition_codes;
+  __arm9_register operand1;
   __arm9_operand2 operand2;
+  __arm9_register dest;
 } __arm9_instr_data_processing;
 
 typedef union {
@@ -98,13 +122,15 @@ static bool instr_is_data_processing(uint32_t i) {
 }
 
 static void arm9_decode_data_processing(__arm9_instr_data_processing* dest, uint32_t i) {
+  dest->opcode = (i >> 21) & 0xF;
+  dest->set_condition_codes = (i >> 20) & 0x1;
+  dest->operand1 = (i >> 16) & 0xF;
+  dest->dest = (i >> 12) & 0xF;
   if((i & (0x1 << 25)) == 0x0) {
-    arm9_decode_operand2_reg(&dest->operand2, 0x00000);
+    arm9_decode_operand2_reg(&dest->operand2, (i&0xFFF));
   } else {
-    arm9_decode_operand2_imm(&dest->operand2, 0x00000);
+    arm9_decode_operand2_imm(&dest->operand2, (i&0xFFF));
   }
-
-  // TODO
 }
 
 void arm9_decode_instruction(__arm9_instruction* dest, uint32_t i) {
